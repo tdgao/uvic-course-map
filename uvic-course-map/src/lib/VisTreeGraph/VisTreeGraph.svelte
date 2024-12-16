@@ -66,6 +66,9 @@
 	}
 
 	onMount(() => {
+		// TODO: a better way to filter all courses. Maybe if it is included as a pre req then add it in.
+		// maybe display one course user wants to see, (or one whole program), then display those courses, as well as all the courses which belong in prereqs
+		// TODO: recursively get all courses associated with a course. then take those as use them as the keys to filter out
 		const filtered = Object.fromEntries(
 			Object.entries(coursesData).filter(([key]) => key.startsWith('CSC'))
 		);
