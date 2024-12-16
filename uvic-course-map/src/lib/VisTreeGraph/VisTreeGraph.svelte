@@ -11,24 +11,23 @@
 		let prereqs: string[] = [];
 
 		if (Array.isArray(requirements)) {
+			// If it's an array, check each item
 			for (const item of requirements) {
 				if (typeof item === 'string') {
-					// If the string looks like a course code, assume it is one
-					// You may want to refine this check based on known course ID formats
-					if (item.match(/^[A-Z]{2,4}\d{3}$/)) {
+					// Check if it looks like a course code (e.g., CSC349A, CSC110)
+					if (item.match(/^[A-Z]{2,4}\d{3}[A-Z]?$/)) {
 						prereqs.push(item);
 					}
-				} else if (typeof item === 'object') {
-					// If it's an object, recursively search its values
-					for (const key in item) {
-						prereqs = prereqs.concat(extractPrereqCourses(item[key]));
-					}
+				} else if (typeof item === 'object' && item !== null) {
+					// Recursively process nested objects/arrays
+					prereqs = prereqs.concat(extractPrereqCourses(item));
 				}
 			}
-		} else if (typeof requirements === 'object') {
-			// If requirements is an object, recursively go through its values
+		} else if (typeof requirements === 'object' && requirements !== null) {
+			// If it's an object, iterate through its values
 			for (const key in requirements) {
-				prereqs = prereqs.concat(extractPrereqCourses(requirements[key]));
+				const val = requirements[key];
+				prereqs = prereqs.concat(extractPrereqCourses(val));
 			}
 		}
 
@@ -81,15 +80,17 @@
 			layout: {
 				hierarchical: {
 					enabled: true,
-					direction: 'UD', // change from 'LR' to 'UD' for top-down layout
-					sortMethod: 'directed'
+					direction: 'UD', // top-to-bottom or 'LR' left-to-right
+					sortMethod: 'directed',
+					levelSeparation: 200, // Increase this for more vertical space between levels
+					nodeSpacing: 250 // Increase this for more horizontal space between nodes on the same level
 				}
 			},
 			physics: {
-				enabled: false
+				enabled: false // Disable physics to keep nodes in a stable layout
 			},
 			interaction: {
-				dragNodes: false,
+				dragNodes: false, // Optional: prevent moving nodes
 				zoomView: true
 			}
 		};
