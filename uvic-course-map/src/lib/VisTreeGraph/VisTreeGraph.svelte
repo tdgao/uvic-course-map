@@ -4,45 +4,11 @@
 	import coursesData from './courses.json';
 
 	let networkContainer: HTMLElement;
-	let targetCourseId = 'CSC115'; // for demonstration
+	let targetCourseId = 'CSC115'; // or any other "target" you want
 
-	//------------------------------------------------------------------
-	// 1. Upstream: gather all prerequisites (ancestors)
-	//------------------------------------------------------------------
-	function getUpstreamCourses(courseId: string, allCourses: any, visited = new Set<string>()) {
-		if (!allCourses[courseId] || visited.has(courseId)) {
-			return visited;
-		}
-		visited.add(courseId);
-
-		const prereqIds = extractAllCourseIds(allCourses[courseId].parsedRequirements);
-		for (const pId of prereqIds) {
-			getUpstreamCourses(pId, allCourses, visited);
-		}
-		return visited;
-	}
-
-	//------------------------------------------------------------------
-	// 2. Downstream: gather all courses that depend on `courseId`
-	//------------------------------------------------------------------
-	function getDownstreamCourses(courseId: string, allCourses: any, visited = new Set<string>()) {
-		if (!allCourses[courseId] || visited.has(courseId)) {
-			return visited;
-		}
-		visited.add(courseId);
-
-		for (const cId in allCourses) {
-			const prereqIds = extractAllCourseIds(allCourses[cId].parsedRequirements);
-			if (prereqIds.includes(courseId)) {
-				getDownstreamCourses(cId, allCourses, visited);
-			}
-		}
-		return visited;
-	}
-
-	//------------------------------------------------------------------
-	// 3. Extract all recognized course IDs from the raw `parsedRequirements`
-	//------------------------------------------------------------------
+	//------------------------------------------------------------
+	// 1. Extract recognized course IDs from parsedRequirements
+	//------------------------------------------------------------
 	function extractAllCourseIds(requirements: any): string[] {
 		if (!requirements) return [];
 		let results: string[] = [];
@@ -57,47 +23,87 @@
 				results = results.concat(extractAllCourseIds(val));
 			}
 		} else if (typeof requirements === 'string') {
-			// If it matches standard pattern like CSC110\nMATH100
+			// e.g. "CSC110" or "MATH100" or "Pre-Calculus 12"
 			if (requirements.match(/^[A-Z]{2,4}\d{3}[A-Z]?$/)) {
 				results.push(requirements);
 			}
 		}
+
 		return results;
 	}
 
-	//------------------------------------------------------------------
-	// 4. Parse each requirement into a "composite" block:
-	//    {
-	//      type: 'composite',
-	//      label: 'CSC110\nCSC111\n...',
-	//      subCourses: ['CSC110', 'CSC111', ...]
-	//    }
-	//
-	//   \na single course block:
-	//    {
-	//      type: 'course',
-	//      courseId: 'CSC110'
-	//    }
-	//------------------------------------------------------------------
+	//------------------------------------------------------------
+	// 2. Upstream traversal with maxDepth
+	//------------------------------------------------------------
+	function getUpstreamCourses(
+		courseId: string,
+		allCourses: any,
+		visited = new Set<string>(),
+		currentDepth = 0,
+		maxDepth = Infinity
+	) {
+		// Stop if invalid or already visited
+		if (!allCourses[courseId] || visited.has(courseId)) {
+			return visited;
+		}
+		visited.add(courseId);
+
+		// If we've reached the limit, do not recurse further
+		if (currentDepth >= maxDepth) {
+			return visited;
+		}
+
+		// Otherwise, gather prerequisites and go deeper
+		const prereqIds = extractAllCourseIds(allCourses[courseId].parsedRequirements);
+		for (const pId of prereqIds) {
+			getUpstreamCourses(pId, allCourses, visited, currentDepth + 1, maxDepth);
+		}
+
+		return visited;
+	}
+
+	//------------------------------------------------------------
+	// 3. Downstream traversal with maxDepth
+	//------------------------------------------------------------
+	function getDownstreamCourses(
+		courseId: string,
+		allCourses: any,
+		visited = new Set<string>(),
+		currentDepth = 0,
+		maxDepth = Infinity
+	) {
+		if (!allCourses[courseId] || visited.has(courseId)) {
+			return visited;
+		}
+		visited.add(courseId);
+
+		if (currentDepth >= maxDepth) {
+			return visited;
+		}
+
+		// For each course in allCourses, check if it depends on courseId
+		for (const cId in allCourses) {
+			const prereqIds = extractAllCourseIds(allCourses[cId].parsedRequirements);
+			if (prereqIds.includes(courseId)) {
+				getDownstreamCourses(cId, allCourses, visited, currentDepth + 1, maxDepth);
+			}
+		}
+		return visited;
+	}
+
+	//------------------------------------------------------------
+	// 4. Parse a single requirement into either:
+	//    - { type: 'course', courseId: 'CSC110' }
+	//    - { type: 'composite', label: 'CSC110 or CSC111', subCourses: [...] }
+	//------------------------------------------------------------
 	function parseRequirement(
 		requirement: any
 	):
 		| { type: 'course'; courseId: string }
 		| { type: 'composite'; label: string; subCourses: string[] }
 		| null {
-		/**
-		 * If requirement is an object like:
-		 * { "Complete 1 of the following": [ "CSC110", "CSC111" ] }
-		 * => we gather subCourses = ["CSC110", "CSC111"]
-		 * => label = "CSC110\nCSC111"
-		 * => return { type: 'composite', label, subCourses }
-		 *
-		 * If requirement is a string like "CSC110" => { type: 'course', courseId: 'CSC110' }
-		 */
-
-		// (A) If array, combine them all into one composite
+		// (A) If it's an array (e.g. [ "CSC110", "MATH100" ])
 		if (Array.isArray(requirement)) {
-			// E.g. [ "CSC110", "MATH100" ]
 			let subCourses: string[] = [];
 			for (const item of requirement) {
 				const parsedItem = parseRequirement(item);
@@ -106,42 +112,42 @@
 				if (parsedItem.type === 'course') {
 					subCourses.push(parsedItem.courseId);
 				} else if (parsedItem.type === 'composite') {
-					// e.g. sub-composite => merge them
 					subCourses = subCourses.concat(parsedItem.subCourses);
 				}
 			}
 			if (subCourses.length === 0) return null;
 			if (subCourses.length === 1) {
-				// If only one sub-course, no need for 'or' label
+				// Only one sub-course
 				return { type: 'course', courseId: subCourses[0] };
 			}
-			const label = subCourses.join('\n');
-			return { type: 'composite', label, subCourses };
+			return {
+				type: 'composite',
+				label: subCourses.join(' or\n'),
+				subCourses
+			};
 		}
 
-		// (B) If object with a key like "Complete 1 of the following"
+		// (B) If it's an object (e.g. { "Complete 1 of:": ["CSC110", "CSC111"] })
 		if (typeof requirement === 'object' && requirement !== null) {
 			const keys = Object.keys(requirement);
 			if (keys.length === 1) {
-				// e.g. "Complete 1 of the following": [ "CSC110", "CSC111" ]
-				const key = keys[0];
+				const key = keys[0]; // e.g. "Complete 1 of the following"
 				const val = requirement[key];
-				// parse the subrequirements
-				const parsedVal = parseRequirement(val); // might be course\ncomposite
+				const parsedVal = parseRequirement(val);
 				if (!parsedVal) return null;
 
 				if (parsedVal.type === 'course') {
-					// if the sub is just one course
+					// e.g. only one course
 					return {
 						type: 'composite',
 						label: parsedVal.courseId,
 						subCourses: [parsedVal.courseId]
 					};
 				} else if (parsedVal.type === 'composite') {
-					// use the same subCourses, but rename the label
+					// merges subCourses
 					return {
 						type: 'composite',
-						label: parsedVal.subCourses.join('\n'),
+						label: parsedVal.subCourses.join(' or\n'),
 						subCourses: parsedVal.subCourses
 					};
 				}
@@ -152,7 +158,6 @@
 					const subVal = requirement[k];
 					const parsedVal = parseRequirement(subVal);
 					if (!parsedVal) continue;
-
 					if (parsedVal.type === 'course') {
 						combinedCourses.push(parsedVal.courseId);
 					} else if (parsedVal.type === 'composite') {
@@ -163,68 +168,64 @@
 				if (combinedCourses.length === 1) {
 					return { type: 'course', courseId: combinedCourses[0] };
 				}
-				const label = combinedCourses.join('\n');
-				return { type: 'composite', label, subCourses: combinedCourses };
+				return {
+					type: 'composite',
+					label: combinedCourses.join(' or\n'),
+					subCourses: combinedCourses
+				};
 			}
 		}
 
-		// (C) If a string like "CSC110"
+		// (C) If it's a string (course code or plain text)
 		if (typeof requirement === 'string') {
-			// If it's a recognized course code
-			if (requirement.match(/^[A-Z]{2,4}\d{3}[A-Z]?$/)) {
-				return { type: 'course', courseId: requirement };
-			} else {
-				// Some non-standard string, treat it like a "course"
-				return { type: 'course', courseId: requirement };
-			}
+			// e.g. "CSC110", "Pre-Calculus 12"
+			return { type: 'course', courseId: requirement };
 		}
 
 		// Fallback
 		return null;
 	}
 
-	//------------------------------------------------------------------
-	// 5. Build the Vis.js graph: subCourse -> composite -> main course
-	//------------------------------------------------------------------
+	//------------------------------------------------------------
+	// 5. Build the final Vis.js graph
+	//    subCourse -> compositeNode -> parentCourse
+	//------------------------------------------------------------
 	let artificialNodeCount = 0;
 
 	function buildGraphData(courseIds: Set<string>, allCourses: any) {
 		const nodes: any[] = [];
 		const edges: any[] = [];
 
-		// Make sure each real course in the set has a node
+		// Ensure each real course has a node
 		for (const cId of courseIds) {
-			const c = allCourses[cId];
-			if (!c) continue;
+			const course = allCourses[cId];
+			if (!course) continue;
 			nodes.push({
 				id: cId,
 				label: cId,
-				title: c.title || cId,
+				title: course.title || cId,
 				shape: 'ellipse',
 				color: '#97C2FC'
 			});
 		}
 
-		// For each course, parse its requirements
+		// Parse each course's requirements, build connections
 		for (const cId of courseIds) {
-			const c = allCourses[cId];
-			if (!c) continue;
-			const reqArray = c.parsedRequirements;
+			const course = allCourses[cId];
+			if (!course) continue;
+			const reqArray = course.parsedRequirements;
 			if (!reqArray || reqArray.length === 0) continue;
 
-			// We can have multiple top-level blocks, e.g.
-			// [
-			//   { "Complete 1 of the following": [... ] },
-			//   { "Complete 2 of the following": [... ] }
-			// ]
+			// Each top-level requirement
 			for (const block of reqArray) {
 				const parsed = parseRequirement(block);
 				if (!parsed) continue;
 
-				// If it's a single course, connect directly:
 				if (parsed.type === 'course') {
+					// If it's a single course
 					const childId = parsed.courseId;
-					// If child course doesn't exist in nodes, add it
+
+					// If we haven't made a node for that course, create a new one
 					if (!nodes.find((n) => n.id === childId)) {
 						nodes.push({
 							id: childId,
@@ -233,31 +234,24 @@
 							color: '#DDD'
 						});
 					}
+					// Connect child -> parent
 					edges.push({ from: childId, to: cId, arrows: 'to' });
-				}
-				// If it's a composite => create the composite node,
-				// then connect each subCourse -> composite -> cId
-				else if (parsed.type === 'composite') {
+				} else if (parsed.type === 'composite') {
+					// Create an artificial node
 					const compositeId = `composite_${++artificialNodeCount}`;
 					nodes.push({
 						id: compositeId,
-						label: parsed.label, // e.g. "CSC110\nCSC111"
+						label: parsed.label, // e.g. "CSC110 or CSC111"
 						shape: 'box',
 						color: '#FFC107',
 						font: { size: 10 }
 					});
 
-					// Connect composite node -> parent course
-					edges.push({
-						from: compositeId,
-						to: cId,
-						arrows: 'to'
-					});
+					// Connect composite node -> parent
+					edges.push({ from: compositeId, to: cId, arrows: 'to' });
 
-					// For each subCourse in parsed.subCourses,
-					// connect subCourse -> composite node
+					// For each subCourse, connect it -> composite
 					for (const subC of parsed.subCourses) {
-						// If subC doesn't exist as a node, add it
 						if (!nodes.find((n) => n.id === subC)) {
 							nodes.push({
 								id: subC,
@@ -266,11 +260,7 @@
 								color: '#DDD'
 							});
 						}
-						edges.push({
-							from: subC,
-							to: compositeId,
-							arrows: 'to'
-						});
+						edges.push({ from: subC, to: compositeId, arrows: 'to' });
 					}
 				}
 			}
@@ -279,16 +269,29 @@
 		return { nodes, edges };
 	}
 
-	//------------------------------------------------------------------
-	// 6. onMount -> gather upstream + downstream, build the network
-	//------------------------------------------------------------------
+	//------------------------------------------------------------
+	// 6. onMount: gather upstream/downstream with limited depth
+	//------------------------------------------------------------
 	onMount(() => {
-		const upstreamSet = getUpstreamCourses(targetCourseId, coursesData);
-		const downstreamSet = getDownstreamCourses(targetCourseId, coursesData);
+		// Example: only go 2 levels upstream, and 1 level downstream
+		const maxUpDepth = 0;
+		const maxDownDepth = 1;
+
+		// Gather upstream, downstream
+		const upstreamSet = getUpstreamCourses(targetCourseId, coursesData, new Set(), 0, maxUpDepth);
+		const downstreamSet = getDownstreamCourses(
+			targetCourseId,
+			coursesData,
+			new Set(),
+			0,
+			maxDownDepth
+		);
 		const combinedSet = new Set<string>([...upstreamSet, ...downstreamSet]);
 
+		// Build the graph
 		const { nodes, edges } = buildGraphData(combinedSet, coursesData);
 
+		// Create the network
 		const data = { nodes, edges };
 		const options = {
 			layout: {
@@ -311,6 +314,7 @@
 	});
 </script>
 
+<!-- The container for Vis.js -->
 <div class="network-container" bind:this={networkContainer}></div>
 
 <style>
