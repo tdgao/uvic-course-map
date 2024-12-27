@@ -1,11 +1,17 @@
 <script lang="ts">
+	import CourseView from './../lib/CourseView/CourseView.svelte';
+	import MainContainer from '$lib/MainContainer/MainContainer.svelte';
 	import VisTreeGraph from '$lib/VisTreeGraph/VisTreeGraph.svelte';
+
+	let course_view_id: string = 'seng371';
 </script>
 
-<h1>UVic Course Map</h1>
-<p>
-	A way to view your courses prerequisite so you can make the best decisions when scheduling your
-	terms.
-</p>
+<MainContainer>
+	<div slot="left">
+		{#if course_view_id}
+			<CourseView />
+		{/if}
+	</div>
 
-<VisTreeGraph />
+	<VisTreeGraph slot="right" />
+</MainContainer>
