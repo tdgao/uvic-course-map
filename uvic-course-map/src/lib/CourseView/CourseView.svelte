@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { activeCourse, activeCourseId } from './CourseView';
-	import courses from '../VisTreeGraph/courses.json';
-	import { graphCourseId } from '$lib/VisTreeGraph/VisTreeGraph';
 
 	$: course = $activeCourse;
 </script>
@@ -9,13 +7,13 @@
 {#if course}
 	<!-- content here -->
 	<div
-		class="prose flex max-h-[60vh] min-w-[250px] flex-col gap-4 overflow-y-scroll max-lg:max-h-[30vh]"
+		class="prose flex max-h-[60vh] min-w-[250px] flex-col gap-4 overflow-auto max-lg:max-h-[30vh]"
 	>
 		<button
-			class="btn btn-circle btn-ghost btn-sm absolute right-8 top-2 font-extrabold"
+			class="btn btn-ghost btn-sm absolute right-6 top-2 font-bold"
 			on:click={() => ($activeCourseId = '')}
 		>
-			✕</button
+			Close</button
 		>
 		<div class="flex flex-col gap-0">
 			<h3>
