@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Network } from 'vis-network';
+	import { Network, type Node, type Options } from 'vis-network';
 	import coursesData from './courses.json';
 
 	let networkContainer: HTMLElement;
@@ -115,11 +115,13 @@
 					subCourses = subCourses.concat(parsedItem.subCourses);
 				}
 			}
+
 			if (subCourses.length === 0) return null;
 			if (subCourses.length === 1) {
 				// Only one sub-course
 				return { type: 'course', courseId: subCourses[0] };
 			}
+
 			return {
 				type: 'composite',
 				label: subCourses.join(' or\n'),
@@ -193,20 +195,21 @@
 	let artificialNodeCount = 0;
 
 	function buildGraphData(courseIds: Set<string>, allCourses: any) {
-		const nodes: any[] = [];
+		const nodes: Node[] = [];
 		const edges: any[] = [];
 
 		// Ensure each real course has a node
 		for (const cId of courseIds) {
 			const course = allCourses[cId];
 			if (!course) continue;
-			nodes.push({
+			const newNode: Node = {
 				id: cId,
 				label: cId,
-				title: course.title || cId,
-				shape: 'ellipse',
+				title: course.title || cId, // e.g. CSC 110
+				shape: 'box',
 				color: '#97C2FC'
-			});
+			};
+			nodes.push(newNode);
 		}
 
 		// Parse each course's requirements, build connections
@@ -230,8 +233,8 @@
 						nodes.push({
 							id: childId,
 							label: childId,
-							shape: 'ellipse',
-							color: '#DDD'
+							shape: 'box',
+							color: '#FFC107'
 						});
 					}
 					// Connect child -> parent
@@ -241,10 +244,10 @@
 					const compositeId = `composite_${++artificialNodeCount}`;
 					nodes.push({
 						id: compositeId,
-						label: parsed.label, // e.g. "CSC110 or CSC111"
+						label: parsed.label, // e.g. "CSC110 or CSC111 or MATH122"
 						shape: 'box',
-						color: '#FFC107',
-						font: { size: 10 }
+						color: '#FFC107', // yellow
+						font: { size: 10, align: 'left' }
 					});
 
 					// Connect composite node -> parent
@@ -252,14 +255,14 @@
 
 					// For each subCourse, connect it -> composite
 					for (const subC of parsed.subCourses) {
-						if (!nodes.find((n) => n.id === subC)) {
-							nodes.push({
-								id: subC,
-								label: subC,
-								shape: 'ellipse',
-								color: '#DDD'
-							});
-						}
+						// if (!nodes.find((n) => n.id === subC)) {
+						// 	nodes.push({
+						// 		id: subC,
+						// 		label: subC,
+						// 		shape: 'circle',
+						// 		color: '#DDD'
+						// 	});
+						// }
 						edges.push({ from: subC, to: compositeId, arrows: 'to' });
 					}
 				}
@@ -293,7 +296,7 @@
 
 		// Create the network
 		const data = { nodes, edges };
-		const options = {
+		const options: Options = {
 			layout: {
 				hierarchical: {
 					enabled: true,
@@ -307,6 +310,15 @@
 			interaction: {
 				dragNodes: false,
 				zoomView: true
+			},
+			nodes: {
+				shape: 'box',
+				widthConstraint: {
+					maximum: 150 // or any desired px width
+				},
+				font: {
+					multi: true // allow multi-line (auto-wrap)
+				}
 			}
 		};
 
