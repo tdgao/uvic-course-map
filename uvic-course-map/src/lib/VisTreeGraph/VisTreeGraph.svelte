@@ -3,9 +3,10 @@
 	import { Network, type Node, type Options } from 'vis-network';
 	import coursesData from './courses.json';
 	import { activeCourseId } from '$lib/CourseView/CourseView';
+	import { graphCourseId } from './VisTreeGraph';
 
 	let networkContainer: HTMLElement;
-	let targetCourseId = 'CSC115'; // or any other "target" you want
+	let network: Network | null;
 
 	//------------------------------------------------------------
 	// 1. Extract recognized course IDs from parsedRequirements
@@ -195,13 +196,31 @@
 	//------------------------------------------------------------
 	let artificialNodeCount = 0;
 
-	function buildGraphData(courseIds: Set<string>, allCourses: any) {
+	function buildGraphData() {
+		// Example: only go 2 levels upstream, and 1 level downstream
+		const maxUpDepth = 0;
+		const maxDownDepth = 1;
+
+		// Gather upstream, downstream
+		const upstreamSet = getUpstreamCourses($graphCourseId, coursesData, new Set(), 0, maxUpDepth);
+		const downstreamSet = getDownstreamCourses(
+			$graphCourseId,
+			coursesData,
+			new Set(),
+			0,
+			maxDownDepth
+		);
+		const combinedSet = new Set<string>([...upstreamSet, ...downstreamSet]);
+
+		const courseIds = combinedSet;
+
 		const nodes: Node[] = [];
 		const edges: any[] = [];
 
 		// Ensure each real course has a node
 		for (const cId of courseIds) {
-			const course = allCourses[cId];
+			//@ts-ignore
+			const course = coursesData[cId];
 			if (!course) continue;
 			const newNode: Node = {
 				id: cId,
@@ -215,7 +234,8 @@
 
 		// Parse each course's requirements, build connections
 		for (const cId of courseIds) {
-			const course = allCourses[cId];
+			//@ts-ignore
+			const course = coursesData[cId];
 			if (!course) continue;
 			const reqArray = course.parsedRequirements;
 			if (!reqArray || reqArray.length === 0) continue;
@@ -248,8 +268,9 @@
 						label: parsed.label, // e.g. "CSC110 or CSC111 or MATH122"
 						shape: 'box',
 						color: '#FFC107', // yellow
-						font: { size: 10, align: 'left' }
-					});
+						font: { size: 10, align: 'left' },
+						selectable: false
+					} as Node);
 
 					// Connect composite node -> parent
 					edges.push({ from: compositeId, to: cId, arrows: 'to' });
@@ -277,23 +298,8 @@
 	// 6. onMount: gather upstream/downstream with limited depth
 	//------------------------------------------------------------
 	onMount(() => {
-		// Example: only go 2 levels upstream, and 1 level downstream
-		const maxUpDepth = 0;
-		const maxDownDepth = 1;
-
-		// Gather upstream, downstream
-		const upstreamSet = getUpstreamCourses(targetCourseId, coursesData, new Set(), 0, maxUpDepth);
-		const downstreamSet = getDownstreamCourses(
-			targetCourseId,
-			coursesData,
-			new Set(),
-			0,
-			maxDownDepth
-		);
-		const combinedSet = new Set<string>([...upstreamSet, ...downstreamSet]);
-
 		// Build the graph
-		const { nodes, edges } = buildGraphData(combinedSet, coursesData);
+		const { nodes, edges } = buildGraphData();
 
 		// Create the network
 		const data = { nodes, edges };
@@ -317,13 +323,14 @@
 				widthConstraint: {
 					maximum: 150 // or any desired px width
 				},
+				labelHighlightBold: false,
 				font: {
 					multi: true // allow multi-line (auto-wrap)
 				}
 			}
 		};
 
-		const network = new Network(networkContainer, data, options);
+		network = new Network(networkContainer, data, options);
 
 		//------------------------------------------------------------
 		// 7. Add click handling to get the clicked node's ID
@@ -341,6 +348,14 @@
 			}
 		});
 	});
+
+	$: {
+		const updatedCourseId = $graphCourseId;
+		if (network && updatedCourseId) {
+			const data = buildGraphData();
+			network.setData(data); // Update the graph data without re-creating the network
+		}
+	}
 </script>
 
 <!-- The container for Vis.js -->
