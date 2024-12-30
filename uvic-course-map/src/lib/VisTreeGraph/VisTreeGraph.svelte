@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { Network, type Node, type Options } from 'vis-network';
 	import coursesData from './courses.json';
+	import { activeCourseId } from '$lib/CourseView/CourseView';
 
 	let networkContainer: HTMLElement;
 	let targetCourseId = 'CSC115'; // or any other "target" you want
@@ -322,7 +323,23 @@
 			}
 		};
 
-		new Network(networkContainer, data, options);
+		const network = new Network(networkContainer, data, options);
+
+		//------------------------------------------------------------
+		// 7. Add click handling to get the clicked node's ID
+		//------------------------------------------------------------
+		network.on('click', (params) => {
+			// params.nodes is an array of node IDs
+			if (params.nodes && params.nodes.length > 0) {
+				const clickedNodeId = params.nodes[0];
+				console.log('Clicked node:', clickedNodeId);
+
+				activeCourseId.set(clickedNodeId);
+
+				// If you want to do something with the course ID, you can
+				// e.g. open a modal, or call a function, etc.
+			}
+		});
 	});
 </script>
 
