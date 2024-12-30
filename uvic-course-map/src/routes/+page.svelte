@@ -13,9 +13,7 @@
 		</div>
 
 		<div class="absolute left-0 top-0 m-4">
-			<IslandContainer>
-				<GraphCourseSearch />
-			</IslandContainer>
+			<GraphCourseSearch />
 		</div>
 
 		<div class="absolute bottom-0 left-0 m-4">

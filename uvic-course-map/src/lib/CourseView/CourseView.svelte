@@ -8,7 +8,9 @@
 
 {#if course}
 	<!-- content here -->
-	<div class="prose flex max-h-[30vh] w-[500px] flex-col gap-4 overflow-y-scroll">
+	<div
+		class="prose flex max-h-[60vh] min-w-[250px] flex-col gap-4 overflow-y-scroll max-lg:max-h-[30vh]"
+	>
 		<button
 			class="btn btn-circle btn-ghost btn-sm absolute right-8 top-2 font-extrabold"
 			on:click={() => ($activeCourseId = '')}

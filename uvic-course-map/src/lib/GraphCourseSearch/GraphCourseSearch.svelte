@@ -70,22 +70,19 @@
 	};
 </script>
 
-<div class="prose flex flex-col gap-2">
-	<label class="flex flex-col gap-2">
-		<h4>Map course</h4>
-		<input
-			type="search"
-			list="all-course-ids"
-			placeholder="CSC360"
-			class="input input-bordered input-md w-full max-w-xs"
-			bind:value={searchCourseId}
-			onchange={searchCourseOnChange}
-		/>
-	</label>
-
+<label class="input input-bordered flex items-center gap-2">
+	<span class="font-semibold">Map course:</span>
+	<input
+		class="grow"
+		type="search"
+		list="all-course-ids"
+		placeholder="Search..."
+		bind:value={searchCourseId}
+		onchange={searchCourseOnChange}
+	/>
 	<datalist id="all-course-ids">
 		{#each courseIds as id}
 			<option value={id}></option>
 		{/each}
 	</datalist>
-</div>
+</label>
