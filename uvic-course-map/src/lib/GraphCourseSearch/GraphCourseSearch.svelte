@@ -71,15 +71,17 @@
 </script>
 
 <div class="prose flex flex-col gap-2">
-	<h3>Map course</h3>
-	<input
-		type="search"
-		list="all-course-ids"
-		placeholder="CSC360"
-		class="input input-bordered w-full max-w-xs"
-		bind:value={searchCourseId}
-		onchange={searchCourseOnChange}
-	/>
+	<label class="flex flex-col gap-2">
+		<h4>Map course</h4>
+		<input
+			type="search"
+			list="all-course-ids"
+			placeholder="CSC360"
+			class="input input-bordered input-md w-full max-w-xs"
+			bind:value={searchCourseId}
+			onchange={searchCourseOnChange}
+		/>
+	</label>
 
 	<datalist id="all-course-ids">
 		{#each courseIds as id}
