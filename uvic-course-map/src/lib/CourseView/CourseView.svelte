@@ -38,9 +38,3 @@
 		</div>
 	</div>
 {/if}
-
-<style>
-	a {
-		color: oklch(var(--p));
-	}
-</style>

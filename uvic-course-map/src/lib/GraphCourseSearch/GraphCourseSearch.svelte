@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { activeCourse } from '../CourseView/CourseView';
 	import courses from '../VisTreeGraph/courses.json';
-	import { graphCourseId } from '$lib/VisTreeGraph/VisTreeGraph';
+	import { graphCourseId, maxDownDepth } from '$lib/VisTreeGraph/VisTreeGraph';
 
 	$: course = $activeCourse;
 
@@ -86,3 +86,8 @@
 		{/each}
 	</datalist>
 </label>
+
+<!-- <label class="input input-bordered flex items-center gap-2">
+	<span class="font-semibold">Depth:</span>
+	<input class="grow" type="number" bind:value={$maxDownDepth} />
+</label> -->

@@ -3,7 +3,7 @@
 	import { Network, type Node, type Options } from 'vis-network';
 	import coursesData from './courses.json';
 	import { activeCourseId } from '$lib/CourseView/CourseView';
-	import { graphCourseId } from './VisTreeGraph';
+	import { maxDownDepth, graphCourseId } from './VisTreeGraph';
 
 	// colours
 	const blue = '#65c3c8';
@@ -203,7 +203,6 @@
 	function buildGraphData() {
 		// Example: only go 2 levels upstream, and 1 level downstream
 		const maxUpDepth = 0;
-		const maxDownDepth = 1;
 
 		// Gather upstream, downstream
 		const upstreamSet = getUpstreamCourses($graphCourseId, coursesData, new Set(), 0, maxUpDepth);
@@ -212,7 +211,7 @@
 			coursesData,
 			new Set(),
 			0,
-			maxDownDepth
+			$maxDownDepth
 		);
 		const combinedSet = new Set<string>([...upstreamSet, ...downstreamSet]);
 
@@ -347,6 +346,7 @@
 
 	$: {
 		const updatedCourseId = $graphCourseId;
+		$maxDownDepth;
 		if (network && updatedCourseId) {
 			const data = buildGraphData();
 			network.setData(data); // Update the graph data without re-creating the network
