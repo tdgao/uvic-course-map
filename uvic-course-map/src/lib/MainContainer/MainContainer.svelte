@@ -7,5 +7,6 @@
 		width: 100dvw;
 		height: 100vh;
 		box-sizing: border-box;
+		overflow: hidden;
 	}
 </style>

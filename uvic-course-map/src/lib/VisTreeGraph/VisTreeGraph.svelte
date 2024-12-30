@@ -5,6 +5,10 @@
 	import { activeCourseId } from '$lib/CourseView/CourseView';
 	import { graphCourseId } from './VisTreeGraph';
 
+	// colours
+	const blue = '#65c3c8';
+	const yellow = '#eeaf3a';
+
 	let networkContainer: HTMLElement;
 	let network: Network | null;
 
@@ -227,7 +231,7 @@
 				label: cId,
 				title: course.title || cId, // e.g. CSC 110
 				shape: cId === $graphCourseId ? 'circle' : 'box',
-				color: '#97C2FC'
+				color: blue
 			};
 			nodes.push(newNode);
 		}
@@ -256,7 +260,7 @@
 							label: childId,
 							shape: 'box',
 							font: { size: 10, align: 'left' },
-							color: '#FFC107'
+							color: yellow
 						});
 					}
 					// Connect child -> parent
@@ -268,7 +272,7 @@
 						id: compositeId,
 						label: parsed.label, // e.g. "CSC110 or CSC111 or MATH122"
 						shape: 'box',
-						color: '#FFC107', // yellow
+						color: yellow, // yellow
 						font: { size: 10, align: 'left' },
 						selectable: false
 					} as Node);
@@ -276,16 +280,7 @@
 					// Connect composite node -> parent
 					edges.push({ from: compositeId, to: cId, arrows: 'to' });
 
-					// For each subCourse, connect it -> composite
 					for (const subC of parsed.subCourses) {
-						// if (!nodes.find((n) => n.id === subC)) {
-						// 	nodes.push({
-						// 		id: subC,
-						// 		label: subC,
-						// 		shape: 'circle',
-						// 		color: '#DDD'
-						// 	});
-						// }
 						edges.push({ from: subC, to: compositeId, arrows: 'to' });
 					}
 				}
