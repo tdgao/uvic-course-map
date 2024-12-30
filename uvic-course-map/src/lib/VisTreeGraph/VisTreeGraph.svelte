@@ -126,7 +126,7 @@
 
 			return {
 				type: 'composite',
-				label: subCourses.join(' or\n'),
+				label: subCourses.join('\n'),
 				subCourses
 			};
 		}
@@ -151,7 +151,7 @@
 					// merges subCourses
 					return {
 						type: 'composite',
-						label: parsedVal.subCourses.join(' or\n'),
+						label: parsedVal.subCourses.join('\n'),
 						subCourses: parsedVal.subCourses
 					};
 				}
@@ -174,7 +174,7 @@
 				}
 				return {
 					type: 'composite',
-					label: combinedCourses.join(' or\n'),
+					label: combinedCourses.join('\n'),
 					subCourses: combinedCourses
 				};
 			}
@@ -226,7 +226,7 @@
 				id: cId,
 				label: cId,
 				title: course.title || cId, // e.g. CSC 110
-				shape: 'box',
+				shape: cId === $graphCourseId ? 'circle' : 'box',
 				color: '#97C2FC'
 			};
 			nodes.push(newNode);
@@ -255,6 +255,7 @@
 							id: childId,
 							label: childId,
 							shape: 'box',
+							font: { size: 10, align: 'left' },
 							color: '#FFC107'
 						});
 					}

@@ -6,6 +6,7 @@
 	$: course = $activeCourse;
 
 	const courseIds = Object.keys(courses);
+	let searchCourseId = $graphCourseId;
 </script>
 
 <div class="prose flex w-[500px] flex-col gap-4 p-4">
@@ -16,7 +17,8 @@
 			list="all-course-ids"
 			placeholder="CSC360"
 			class="input input-bordered w-full max-w-xs"
-			bind:value={$graphCourseId}
+			bind:value={searchCourseId}
+			onchange={() => ($graphCourseId = searchCourseId)}
 		/>
 
 		<datalist id="all-course-ids">
@@ -30,9 +32,10 @@
 		<div class="flex flex-col gap-0">
 			<h2>
 				{course.courseId}
-				<br />
-				{course.title}
 			</h2>
+			<h3>
+				{course.title}
+			</h3>
 			<a class="link link-primary w-max" href={course.url} target="_blank" rel="noopener noreferrer"
 				>See in UVic Calendar</a
 			>
@@ -43,7 +46,7 @@
 			<div>
 				{@html course.htmlRequirements?.replaceAll(
 					'#/courses',
-					'https://www.uvic.ca/calendar/undergrad/index.php#/courses'
+					`https://www.uvic.ca/calendar/undergrad/index.php#/courses`
 				)}
 			</div>
 		</div>
@@ -51,3 +54,9 @@
 		<p>Select a course to view</p>
 	{/if}
 </div>
+
+<style>
+	a {
+		color: oklch(var(--p));
+	}
+</style>
