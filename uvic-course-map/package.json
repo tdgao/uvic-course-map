@@ -36,6 +36,7 @@
 		"vite": "^6.0.0"
 	},
 	"dependencies": {
+		"@vercel/analytics": "^1.4.1",
 		"vis-network": "^9.1.9"
 	}
 }
