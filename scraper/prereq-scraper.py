@@ -8,39 +8,8 @@ import os
 
 # Maximum number of concurrent requests
 CONCURRENT_REQUESTS = 10
-COURSE_CATALOG_JSON = "kuali-course-catalog.json"
-
-
-async def fetch_course_data(session, sem, course_id):
-    url = f"https://uvic.kuali.co/api/v1/catalog/course/byId/667b0a5143034a001c39ffe8/{course_id}"
-    headers = {"User-Agent": "Mozilla/5.0"}  # Generic User-Agent
-    async with sem:
-        for attempt in range(3):  # Retry up to 3 times
-            try:
-                print(
-                    f"Fetching data for {course_id} (attempt {attempt + 1})...",
-                    flush=True,
-                )
-                async with session.get(url, headers=headers, timeout=10) as response:
-                    response.raise_for_status()  # Raise exception for HTTP errors
-                    html_content = await response.text()
-                    print(f"Successfully fetched data for {course_id}.", flush=True)
-                    return html_content
-            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-                wait_time = 2**attempt
-                print(
-                    f"Attempt {attempt + 1} failed for {course_id}: {e}. Retrying in {wait_time} seconds...",
-                    flush=True,
-                )
-                await asyncio.sleep(wait_time)
-        print(f"Failed to fetch data for {course_id} after 3 attempts.", flush=True)
-        return None
-
-
-async def fetch_course(session, sem, course_id):
-    html_content = await fetch_course_data(session, sem, course_id)
-
-    return html_content
+COURSE_CATALOG_JSON = "kuali-course-catalog.json"  # retrieved from https://uvic.kuali.co/api/v1/catalog/courses/65eb47906641d7001c157bc4/
+OUTPUT_JSON = "courses.json"  # output file for parsed courses
 
 
 def get_requirements(ul):
@@ -76,10 +45,79 @@ def top_ul(tag):
     return len(tag.find_parents("ul")) == 0 and tag.name == "ul"
 
 
+# format is in the following:
+# 	"CSC299": {
+# 		"courseId": "CSC299",
+# 		"title": "Undergraduate Directed Project",
+# 		"pid": "rk29yO6XE",
+# 		"parsedRequirements": [
+# 			{
+# 				"Complete  all  of the following": [
+# 					{
+# 						"Complete  2  of the following": [
+# 							{ "Earn a minimum grade of B+ in each of the following: ": ["CSC115"] },
+# 							{ "Earn a minimum grade of B+ in each of the following: ": ["CSC226"] },
+# 							{ "Earn a minimum grade of B+ in each of the following: ": ["CSC230"] },
+# 							{ "Earn a minimum grade of B+ in each of the following: ": ["SENG265"] }
+# 						]
+# 					},
+# 					"permission of the department."
+# 				]
+# 			}
+# 		],
+# 		"htmlRequirements": "<div><div><div><ul><li><span>Complete <!-- -->all<!-- --> of the following</span><ul><div><span></span><li><span>Complete <!-- -->2<!-- --> of the following</span><ul><li data-test=\"ruleView-A.1\"><div data-test=\"ruleView-A.1-result\">Earn a minimum grade of <span>B+</span> in each of the following: <div><ul style=\"margin-top:5px;margin-bottom:5px\"><li><span><a href=\"#/courses/view/5cbdf4e567a5c324003b0bb6\" target=\"_blank\">CSC115</a> <!-- -->- <!-- -->Fundamentals of Programming II<!-- --> <span style=\"margin-left:5px\">(1.5)</span></span></li></ul></div></div></li><li data-test=\"ruleView-A.2\"><div data-test=\"ruleView-A.2-result\">Earn a minimum grade of <span>B+</span> in each of the following: <div><ul style=\"margin-top:5px;margin-bottom:5px\"><li><span><a href=\"#/courses/view/5cbdf4eb67a5c324003b0bc0\" target=\"_blank\">CSC226</a> <!-- -->- <!-- -->Algorithms and Data Structures II<!-- --> <span style=\"margin-left:5px\">(1.5)</span></span></li></ul></div></div></li><li data-test=\"ruleView-A.3\"><div data-test=\"ruleView-A.3-result\">Earn a minimum grade of <span>B+</span> in each of the following: <div><ul style=\"margin-top:5px;margin-bottom:5px\"><li><span><a href=\"#/courses/view/5cbdf4ec67a5c324003b0bc3\" target=\"_blank\">CSC230</a> <!-- -->- <!-- -->Introduction to Computer Architecture<!-- --> <span style=\"margin-left:5px\">(1.5)</span></span></li></ul></div></div></li><li data-test=\"ruleView-A.4\"><div data-test=\"ruleView-A.4-result\">Earn a minimum grade of <span>B+</span> in each of the following: <div><ul style=\"margin-top:5px;margin-bottom:5px\"><li><span><a href=\"#/courses/view/5cbdf65404ce072400156009\" target=\"_blank\">SENG265</a> <!-- -->- <!-- -->Software Development Methods<!-- --> <span style=\"margin-left:5px\">(1.5)</span></span></li></ul></div></div></li></ul></li></div><li data-test=\"ruleView-B\"><div data-test=\"ruleView-B-result\"><div>permission of the department.</div></div></li></ul></li></ul></div></div></div>",
+# 		"url": "https://www.uvic.ca/calendar/undergrad/index.php#/courses/rk29yO6XE"
+# 	},
+def transform_course_data(original_json):
+    course_key = original_json.get("__catalogCourseId", "UNKNOWN_COURSE")
+    prereqs = original_json.get("preAndCorequisites", None)
+    transformed = {
+        "courseId": course_key,
+        "title": original_json.get("title", ""),
+        "pid": original_json.get("pid", ""),
+        "parsedRequirements": (
+            get_requirements(BeautifulSoup(prereqs, "html.parser").find(top_ul))
+            if prereqs
+            else []
+        ),
+        "htmlRequirements": original_json.get("preAndCorequisites", ""),
+        "url": f"https://www.uvic.ca/calendar/undergrad/index.php#/courses/{original_json.get('pid','')}",
+    }
+
+    return {course_key: transformed}
+
+
+async def fetch_course_data(session, sem, course_id):
+    url = f"https://uvic.kuali.co/api/v1/catalog/course/byId/667b0a5143034a001c39ffe8/{course_id}"
+    headers = {"User-Agent": "Mozilla/5.0"}  # Generic User-Agent
+    async with sem:
+        for attempt in range(3):  # Retry up to 3 times
+            try:
+                print(
+                    f"Fetching data for {course_id} (attempt {attempt + 1})...",
+                    flush=True,
+                )
+                async with session.get(url, headers=headers, timeout=10) as response:
+                    response.raise_for_status()  # Raise exception for HTTP errors
+                    html_content = await response.text()
+                    print(f"Successfully fetched data for {course_id}.", flush=True)
+                    return html_content
+            except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                wait_time = 2**attempt
+                print(
+                    f"Attempt {attempt + 1} failed for {course_id}: {e}. Retrying in {wait_time} seconds...",
+                    flush=True,
+                )
+                await asyncio.sleep(wait_time)
+        print(f"Failed to fetch data for {course_id} after 3 attempts.", flush=True)
+        return None
+
+
 async def main():
     start_time = time.time()
     print("Script started.", flush=True)
 
+    all_courses_parsed = {}  # the final courses json
     courses_list = []
     with open(COURSE_CATALOG_JSON, "r", encoding="utf-8") as jsonfile:
         courses_list = json.load(jsonfile)
@@ -89,11 +127,11 @@ async def main():
     async with aiohttp.ClientSession() as session:
         tasks = []
 
-        count = 0
-        for course in courses_list:
-            tasks.append(fetch_course(session, sem, course["id"]))
-            count += 1
-            if count > 10:
+        for count, course in enumerate(courses_list):
+            tasks.append(fetch_course_data(session, sem, course["id"]))
+
+            # for testing
+            if count > 100:
                 break
 
         # Process tasks concurrently with progress indication
@@ -104,13 +142,16 @@ async def main():
             response = await future
             completed_tasks += 1
             print(f"Completed {completed_tasks}/{total_tasks} tasks.", flush=True)
+
+            # Handle response and get parsed course data
             response_json = json.loads(response)
             if response_json:
-                prereqs = response_json.get("preAndCorequisites", None)
-                if prereqs:
-                    print(prereqs)
-                    container = BeautifulSoup(prereqs, "html.parser")
-                    print(get_requirements(container.find(top_ul)))
+                course_reqs = transform_course_data(response_json)
+                all_courses_parsed = {**all_courses_parsed, **course_reqs}
+
+    # Writing to courses.json
+    with open(OUTPUT_JSON, "w") as outfile:
+        outfile.write(json.dumps(all_courses_parsed))
 
     end_time = time.time()
     total_time = end_time - start_time
