@@ -4,12 +4,14 @@ import aiohttp
 import time
 import json
 from bs4 import BeautifulSoup
-import os
+import sys
+
 
 # Maximum number of concurrent requests
 CONCURRENT_REQUESTS = 10
 COURSE_CATALOG_JSON = "kuali-course-catalog.json"  # retrieved from https://uvic.kuali.co/api/v1/catalog/courses/65eb47906641d7001c157bc4/
 OUTPUT_JSON = "courses.json"  # output file for parsed courses
+test_mode = False
 
 
 def get_requirements(ul):
@@ -93,14 +95,16 @@ async def fetch_course_data(session, sem, course_id):
     async with sem:
         for attempt in range(3):  # Retry up to 3 times
             try:
-                print(
-                    f"Fetching data for {course_id} (attempt {attempt + 1})...",
-                    flush=True,
-                )
+                if test_mode or attempt > 1:
+                    print(
+                        f"Fetching data for {course_id} (attempt {attempt + 1})...",
+                        flush=True,
+                    )
                 async with session.get(url, headers=headers, timeout=10) as response:
                     response.raise_for_status()  # Raise exception for HTTP errors
                     html_content = await response.text()
-                    print(f"Successfully fetched data for {course_id}.", flush=True)
+                    if test_mode or attempt > 1:
+                        print(f"Successfully fetched data for {course_id}.", flush=True)
                     return html_content
             except (aiohttp.ClientError, asyncio.TimeoutError) as e:
                 wait_time = 2**attempt
@@ -114,8 +118,13 @@ async def fetch_course_data(session, sem, course_id):
 
 
 async def main():
+    global test_mode
     start_time = time.time()
     print("Script started.", flush=True)
+
+    if len(sys.argv) > 1 and sys.argv[1] == "-test":
+        print("Entering test mode\n")
+        test_mode = True
 
     all_courses_parsed = {}  # the final courses json
     courses_list = []
@@ -131,7 +140,7 @@ async def main():
             tasks.append(fetch_course_data(session, sem, course["id"]))
 
             # for testing
-            if count > 100:
+            if test_mode and count > 100:
                 break
 
         # Process tasks concurrently with progress indication
@@ -141,7 +150,8 @@ async def main():
         for future in asyncio.as_completed(tasks):
             response = await future
             completed_tasks += 1
-            print(f"Completed {completed_tasks}/{total_tasks} tasks.", flush=True)
+            if test_mode:
+                print(f"Completed {completed_tasks}/{total_tasks} tasks.", flush=True)
 
             # Handle response and get parsed course data
             response_json = json.loads(response)
