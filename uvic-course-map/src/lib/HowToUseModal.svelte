@@ -17,15 +17,20 @@
 
 			<p><strong>How to Use</strong></p>
 			<ul>
-				<li>– Enter a course ID in the top left to generate a dependency map.</li>
-				<li>– Click any course node to view detailed information.</li>
+				<li>- Enter a course ID in the top left to generate a dependency map.</li>
+				<li>- Click any course node to view detailed information.</li>
 			</ul>
+
+			<p>
+				The courses higher in the graph represent the prerequisites that are required for the course
+				connected below.
+			</p>
 		</div>
 
 		<div class="modal-action">
 			<form method="dialog">
 				<!-- if there is a button in form, it will close the modal -->
-				<button class="btn">Got it</button>
+				<button class="btn">Done</button>
 			</form>
 		</div>
 	</div>

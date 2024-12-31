@@ -37,4 +37,10 @@
 			</div>
 		</div>
 	</div>
+{:else}
+	<p class="text-md text-neutral opacity-70">
+		<span class="max-md:hidden">Click</span>
+		<span class="md:hidden">Tap</span>
+		on a course to see details
+	</p>
 {/if}
